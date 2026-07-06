@@ -1,0 +1,52 @@
+rules:
+  # ---------------------------------------------------------------
+  # CWE-502: Workflow-specific deserialization
+  #
+  # In workflow engines (like Vercel's), serialized state is
+  # restored to resume execution. If the serialized data is
+  # tampered with, it can inject arbitrary properties, modify
+  # control flow, or trigger code execution on deserialization.
+  # ---------------------------------------------------------------
+  - id: node-workflow-deserialization
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Workflow deserialization detected (CWE-502). Code that
+      reconstructs execution state from serialized data (JSON,
+      checkpoints, snapshots) is a high-value attack surface.
+      If the serialized data can be tampered with, an attacker
+      can inject properties that modify control flow. Validate
+      the schema and integrity of deserialized data.
+    pattern-either:
+      # Generic deserialization patterns
+      - pattern: deserialize(...)
+      - pattern: unserialize(...)
+      # Workflow state restoration
+      - pattern: restore(...)
+      - pattern: resume(...)
+      - pattern: hydrate(...)
+      - pattern: rehydrate(...)
+      # Checkpoint/snapshot patterns
+      - pattern: loadCheckpoint(...)
+      - pattern: restoreCheckpoint(...)
+      - pattern: loadSnapshot(...)
+      - pattern: restoreSnapshot(...)
+      - pattern: fromSnapshot(...)
+      # JSON.parse of workflow state
+      - pattern: |
+          $STATE = JSON.parse($X)
+          ...
+          $STATE.$PROP
+      - pattern: |
+          const $STATE = JSON.parse($X)
+          ...
+          $STATE.$PROP
+
+    metadata:
+      cwe:
+        - "CWE-502: Deserialization of Untrusted Data"
+      confidence: MEDIUM
+      impact: HIGH
+      category: security
+      owasp:
+        - A08:2021 - Software and Data Integrity Failures

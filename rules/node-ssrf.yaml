@@ -1,0 +1,81 @@
+rules:
+  # ---------------------------------------------------------------
+  # CWE-918: Server-Side Request Forgery (SSRF)
+  #
+  # If the URL argument to fetch/axios/got/request comes from
+  # CLI args, config, or workflow state, an attacker can make
+  # the server send requests to internal services.
+  # ---------------------------------------------------------------
+  - id: node-ssrf
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Potential SSRF (CWE-918). If the URL is constructed from
+      user-controlled data (CLI args, config, workflow state),
+      an attacker can force requests to internal services or
+      cloud metadata endpoints (169.254.169.254). Validate URLs
+      against an allowlist of permitted hosts.
+    pattern-either:
+      # --- fetch with dynamic URL ---
+      - pattern: fetch($URL + $PATH, ...)
+      - pattern: fetch(`...${...}...`, ...)
+      # --- axios ---
+      - pattern: axios($URL + $PATH, ...)
+      - pattern: axios(`...${...}...`, ...)
+      - pattern: axios.get($URL + $PATH, ...)
+      - pattern: axios.get(`...${...}...`, ...)
+      - pattern: axios.post($URL + $PATH, ...)
+      - pattern: axios.post(`...${...}...`, ...)
+      - pattern: "axios({url: $URL + $PATH, ...})"
+      - pattern: "axios({url: `...${...}...`, ...})"
+      # --- got ---
+      - pattern: got($URL + $PATH, ...)
+      - pattern: got(`...${...}...`, ...)
+      - pattern: got.get($URL + $PATH, ...)
+      - pattern: got.post($URL + $PATH, ...)
+      # --- node-fetch ---
+      - pattern: nodeFetch($URL + $PATH, ...)
+      - pattern: nodeFetch(`...${...}...`, ...)
+      # --- http/https native ---
+      - pattern: http.request($URL + $PATH, ...)
+      - pattern: http.request(`...${...}...`, ...)
+      - pattern: http.get($URL + $PATH, ...)
+      - pattern: http.get(`...${...}...`, ...)
+      - pattern: https.request($URL + $PATH, ...)
+      - pattern: https.request(`...${...}...`, ...)
+      - pattern: https.get($URL + $PATH, ...)
+      # --- request (deprecated but still in use) ---
+      - pattern: request($URL + $PATH, ...)
+      - pattern: request(`...${...}...`, ...)
+      - pattern: "request({url: $URL + $PATH, ...})"
+      - pattern: "request({uri: `...${...}...`, ...})"
+      # --- Intermediate variable ---
+      - pattern: |
+          $URL = `...${...}...`
+          ...
+          fetch($URL, ...)
+      - pattern: |
+          const $URL = `...${...}...`
+          ...
+          fetch($URL, ...)
+      - pattern: |
+          $URL = $A + $B
+          ...
+          fetch($URL, ...)
+      - pattern: |
+          const $URL = `...${...}...`
+          ...
+          axios.get($URL, ...)
+      - pattern: |
+          $URL = `...${...}...`
+          ...
+          got($URL, ...)
+
+    metadata:
+      cwe:
+        - "CWE-918: Server-Side Request Forgery (SSRF)"
+      confidence: MEDIUM
+      impact: HIGH
+      category: security
+      owasp:
+        - A10:2021 - Server-Side Request Forgery

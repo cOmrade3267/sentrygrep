@@ -1,0 +1,64 @@
+rules:
+  # ---------------------------------------------------------------
+  # CWE-526: Environment variable exposure / manipulation
+  #
+  # TIGHTENED: Removed the overly broad `process.env[$KEY]` and
+  # individual env reads. Now only flags env writes (modification)
+  # and env values flowing into dangerous sinks.
+  # ---------------------------------------------------------------
+  - id: node-env-modification
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Environment variable modification detected (CWE-526). If the
+      value comes from user input, an attacker can set PATH,
+      NODE_OPTIONS, or other sensitive variables to hijack execution.
+    pattern-either:
+      - pattern: process.env[$KEY] = $VALUE
+      - pattern: process.env.NODE_OPTIONS = $VALUE
+      - pattern: process.env.PATH = $VALUE
+      - pattern: process.env.NODE_PATH = $VALUE
+      - pattern: process.env.GIT_SSH_COMMAND = $VALUE
+
+    metadata:
+      cwe:
+        - "CWE-526: Exposure of Sensitive Information Through Environmental Variables"
+      confidence: MEDIUM
+      impact: MEDIUM
+      category: security
+
+  # --- Env values flowing into exec ---
+  - id: node-env-to-exec
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Environment variable value reaches a command execution sink.
+      If the env var is attacker-controllable, this is command
+      injection.
+    pattern-either:
+      - pattern: exec(process.env.$VAR, ...)
+      - pattern: execSync(process.env.$VAR, ...)
+      - pattern: spawn(process.env.$VAR, ...)
+      - pattern: |
+          $CMD = process.env.$VAR
+          ...
+          exec($CMD, ...)
+      - pattern: |
+          const $CMD = process.env.$VAR
+          ...
+          exec($CMD, ...)
+      - pattern: |
+          $CMD = process.env.$VAR
+          ...
+          spawn($CMD, ...)
+      - pattern: exec(`...${process.env.$VAR}...`, ...)
+      - pattern: execSync(`...${process.env.$VAR}...`, ...)
+
+    metadata:
+      cwe:
+        - "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      confidence: HIGH
+      impact: HIGH
+      category: security
+      owasp:
+        - A03:2021 - Injection

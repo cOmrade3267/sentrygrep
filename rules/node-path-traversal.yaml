@@ -1,0 +1,63 @@
+rules:
+  # ---------------------------------------------------------------
+  # CWE-22: Path Traversal via filesystem operations
+  #
+  # TIGHTENED: Only flags fs operations where the path is built
+  # dynamically via concatenation or template literals. Plain
+  # path.join() with variable args is too common to be useful.
+  # ---------------------------------------------------------------
+  - id: node-path-traversal
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Filesystem operation with dynamically-built path (CWE-22).
+      If any segment of the path comes from user input, an attacker
+      can traverse directories with ../ sequences. Validate with
+      path.resolve() and check the result stays within the intended
+      directory.
+    pattern-either:
+      # --- fs read with concatenation/template ---
+      - pattern: fs.readFile($X + $Y, ...)
+      - pattern: fs.readFile(`...${...}...`, ...)
+      - pattern: fs.readFileSync($X + $Y, ...)
+      - pattern: fs.readFileSync(`...${...}...`, ...)
+      - pattern: fs.createReadStream($X + $Y, ...)
+      - pattern: fs.createReadStream(`...${...}...`)
+      # --- fs write with concatenation/template ---
+      - pattern: fs.writeFile($X + $Y, ...)
+      - pattern: fs.writeFile(`...${...}...`, ...)
+      - pattern: fs.writeFileSync($X + $Y, ...)
+      - pattern: fs.writeFileSync(`...${...}...`, ...)
+      - pattern: fs.createWriteStream($X + $Y, ...)
+      - pattern: fs.createWriteStream(`...${...}...`)
+      # --- fs.promises with concat/template ---
+      - pattern: fs.promises.readFile($X + $Y, ...)
+      - pattern: fs.promises.readFile(`...${...}...`, ...)
+      - pattern: fs.promises.writeFile($X + $Y, ...)
+      - pattern: fs.promises.writeFile(`...${...}...`, ...)
+      # --- Indirect: concat/template then fs ---
+      - pattern: |
+          $PATH = $A + $B
+          ...
+          fs.readFile($PATH, ...)
+      - pattern: |
+          $PATH = `...${...}...`
+          ...
+          fs.readFile($PATH, ...)
+      - pattern: |
+          $PATH = $A + $B
+          ...
+          fs.readFileSync($PATH, ...)
+      - pattern: |
+          $PATH = `...${...}...`
+          ...
+          fs.writeFile($PATH, ...)
+
+    metadata:
+      cwe:
+        - "CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+      confidence: MEDIUM
+      impact: HIGH
+      category: security
+      owasp:
+        - A01:2021 - Broken Access Control

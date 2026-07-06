@@ -1,0 +1,43 @@
+rules:
+  # ---------------------------------------------------------------
+  # CWE-502: Unsafe YAML parsing
+  #
+  # yaml.load() (js-yaml v3 and below, PyYAML) is unsafe by
+  # default — it can instantiate arbitrary objects. js-yaml v4+
+  # defaults to safe mode, but yaml.load() with explicit
+  # schema overrides can re-enable unsafe behavior.
+  # ---------------------------------------------------------------
+  - id: node-unsafe-yaml-load
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Unsafe YAML parsing detected (CWE-502). yaml.load() without
+      explicit safe schema can deserialize arbitrary objects, leading
+      to code execution. Use yaml.load(input, {schema: SAFE_SCHEMA})
+      or yaml.safeLoad() (deprecated but safe). In js-yaml v4+,
+      default load() is safe, but verify no schema override exists.
+    pattern-either:
+      # js-yaml
+      - pattern: yaml.load(...)
+      - pattern: jsyaml.load(...)
+      - pattern: YAML.load(...)
+      # js-yaml with explicit unsafe schema
+      - pattern: "yaml.load($X, {schema: yaml.DEFAULT_FULL_SCHEMA, ...})"
+      - pattern: "yaml.load($X, {schema: yaml.JSON_SCHEMA, ...})"
+      # Generic parse functions
+      - pattern: parseYaml(...)
+      - pattern: yamlParse(...)
+      # yaml package (alternative to js-yaml)
+      - pattern: YAML.parse(...)
+      # node-yaml
+      - pattern: yaml.readSync(...)
+      - pattern: yaml.read(...)
+
+    metadata:
+      cwe:
+        - "CWE-502: Deserialization of Untrusted Data"
+      confidence: HIGH
+      impact: HIGH
+      category: security
+      owasp:
+        - A08:2021 - Software and Data Integrity Failures

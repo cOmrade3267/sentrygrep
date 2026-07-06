@@ -1,0 +1,39 @@
+rules:
+  # ---------------------------------------------------------------
+  # CWE-94: Dynamic require() / import()
+  #
+  # If the argument to require() or import() comes from argv,
+  # config, JSON, or environment — an attacker can load arbitrary
+  # modules and execute code.
+  # ---------------------------------------------------------------
+  - id: node-dynamic-require
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Dynamic require/import detected (CWE-94). If the module path
+      comes from user input (argv, config, env, JSON), an attacker
+      can load arbitrary modules. Verify the argument is hardcoded
+      or validated against an allowlist.
+    pattern-either:
+      - pattern: require($X + $Y)
+      - pattern: require(`...${...}...`)
+      - pattern: import($X + $Y)
+      - pattern: import(`...${...}...`)
+      # Intermediate variable patterns
+      - pattern: |
+          $VAR = $A + $B
+          ...
+          require($VAR)
+      - pattern: |
+          const $VAR = `...${...}...`
+          ...
+          require($VAR)
+
+    metadata:
+      cwe:
+        - "CWE-94: Improper Control of Generation of Code ('Code Injection')"
+      confidence: MEDIUM
+      impact: HIGH
+      category: security
+      owasp:
+        - A03:2021 - Injection
