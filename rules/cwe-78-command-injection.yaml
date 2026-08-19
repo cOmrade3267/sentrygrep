@@ -182,3 +182,42 @@ rules:
 
     languages:
       - go
+
+# ---------------------------------------------------------------
+  # Rule 3: Direct variable passthrough — no concatenation, no
+  # Sprintf, just a plain variable handed straight to a shell.
+  # This is the SIMPLEST and most common shape of this bug, and
+  # Rules 1/2 don't catch it since they require a transformation
+  # (+ or fmt.Sprintf) before the value reaches exec.Command.
+  # ---------------------------------------------------------------
+  - id: go-cwe-78-shell-command-injection-direct
+    pattern-either:
+      - pattern: exec.Command($SHELL, "-c", $VAR)
+      - pattern: exec.Command($SHELL, "-c", $VAR, ...)
+      - pattern: exec.CommandContext($CTX, $SHELL, "-c", $VAR)
+      - pattern: exec.CommandContext($CTX, $SHELL, "-c", $VAR, ...)
+    pattern-not-either:
+      - pattern: exec.Command($SHELL, "-c", "...")
+      - pattern: exec.CommandContext($CTX, $SHELL, "-c", "...")
+
+    severity: ERROR
+
+    message: >-
+      OS command injection risk (CWE-78): a variable is passed directly
+      to a shell via exec.Command/exec.CommandContext with "-c". If this
+      variable's value can be influenced by user input, an attacker can
+      inject arbitrary shell commands. Fix: pass arguments as separate
+      parameters to exec.Command without invoking a shell, or validate
+      the input strictly before use.
+
+    metadata:
+      cwe:
+        - "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      confidence: HIGH
+      impact: HIGH
+      category: security
+      owasp:
+        - A03:2021 - Injection
+
+    languages:
+      - go

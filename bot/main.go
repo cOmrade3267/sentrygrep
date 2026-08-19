@@ -154,13 +154,38 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Extracted PR code to %s, ready for scan", tmpDir)
+	checkRunID, err := createCheckRun(installToken.Token, owner, repo, event.PullRequest.Head.SHA)
+	if err != nil {
+		log.Printf("Failed to create check run: %v", err)
+	}
 
-	// THIS is the point where we'll eventually trigger the Docker scan.
-	// Not built yet — next step.
+	report, err := runDockerScan(tmpDir)
+	if err != nil {
+		log.Printf("Scan failed for %s: %v", event.Repository.FullName, err)
+		http.Error(w, fmt.Sprintf("Scan failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Scan complete: %d findings (by severity: %v)",
+		report.TotalFindings, report.BySeverity)
+
+	if checkRunID != 0 {
+		if err := completeCheckRun(installToken.Token, owner, repo, checkRunID, report); err != nil {
+			log.Printf("Failed to complete check run: %v", err)
+		} else {
+			log.Printf("Completed check run for %s PR #%d", event.Repository.FullName, event.Number)
+		}
+	}
+
+	commentText := formatReportAsComment(report)
+	if err := postPRComment(installToken.Token, owner, repo, event.Number, commentText); err != nil {
+		log.Printf("Failed to post PR comment: %v", err)
+	} else {
+		log.Printf("Posted scan results to %s PR #%d", event.Repository.FullName, event.Number)
+	}
 
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintln(w, `{"status": "code fetched, ready to scan"}`)
+	json.NewEncoder(w).Encode(report)
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
