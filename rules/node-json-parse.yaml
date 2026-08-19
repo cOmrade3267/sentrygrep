@@ -1,0 +1,67 @@
+rules:
+  # ---------------------------------------------------------------
+  # CWE-502: Unsafe Deserialization — JSON.parse
+  #
+  # TIGHTENED: Removed the broad `JSON.parse($X)` catch-all.
+  # Now only flags JSON.parse where the parsed result flows
+  # into a dangerous sink (exec, eval, bracket assignment).
+  # ---------------------------------------------------------------
+  - id: node-unsafe-json-parse
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      JSON.parse result flows into a dangerous sink (CWE-502).
+      If the JSON input comes from an untrusted source (stdin,
+      IPC, network, cache, workflow state) and the parsed object
+      reaches exec, eval, or dynamic property assignment — this
+      is a deserialization vulnerability.
+    pattern-either:
+      # Parse then exec
+      - pattern: |
+          $OBJ = JSON.parse($X)
+          ...
+          exec($OBJ, ...)
+      - pattern: |
+          const $OBJ = JSON.parse($X)
+          ...
+          exec($OBJ, ...)
+      - pattern: |
+          $OBJ = JSON.parse($X)
+          ...
+          execSync($OBJ, ...)
+      - pattern: |
+          const $OBJ = JSON.parse($X)
+          ...
+          execSync($OBJ, ...)
+      # Parse then eval
+      - pattern: |
+          $OBJ = JSON.parse($X)
+          ...
+          eval($OBJ)
+      - pattern: |
+          const $OBJ = JSON.parse($X)
+          ...
+          eval($OBJ)
+      # Parse then bracket access (prototype pollution vector)
+      - pattern: |
+          $OBJ = JSON.parse($X)
+          ...
+          $TARGET[$OBJ] = $VALUE
+      # Parse then require (code injection)
+      - pattern: |
+          $OBJ = JSON.parse($X)
+          ...
+          require($OBJ)
+      - pattern: |
+          const $OBJ = JSON.parse($X)
+          ...
+          require($OBJ)
+
+    metadata:
+      cwe:
+        - "CWE-502: Deserialization of Untrusted Data"
+      confidence: MEDIUM
+      impact: MEDIUM
+      category: security
+      owasp:
+        - A08:2021 - Software and Data Integrity Failures

@@ -1,0 +1,128 @@
+rules:
+  # ---------------------------------------------------------------
+  # CLI-specific review for Vercel CLI
+  #
+  # The key question: Can any user-controlled CLI argument,
+  # config value, environment variable, or project file influence
+  # the command, executable, working directory, or shell invocation?
+  #
+  # This rule surfaces CLI-specific dangerous patterns:
+  # - CLI args (process.argv) flowing into exec/spawn
+  # - Config values flowing into commands
+  # - Dynamic cwd in spawn options
+  # ---------------------------------------------------------------
+
+  # --- process.argv reaching exec/spawn ---
+  - id: node-cli-argv-to-exec
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      CLI argument (process.argv) reaches a command execution sink.
+      An attacker controlling CLI arguments can inject arbitrary
+      shell commands. Validate and sanitize argv values before
+      passing to child_process functions.
+    pattern-either:
+      # Direct argv in exec
+      - pattern: exec(process.argv[$IDX], ...)
+      - pattern: execSync(process.argv[$IDX], ...)
+      - pattern: spawn(process.argv[$IDX], ...)
+      # argv via template literal
+      - pattern: exec(`...${process.argv[$IDX]}...`, ...)
+      - pattern: execSync(`...${process.argv[$IDX]}...`, ...)
+      # Intermediate: argv stored then passed
+      - pattern: |
+          $CMD = process.argv[$IDX]
+          ...
+          exec($CMD, ...)
+      - pattern: |
+          $CMD = process.argv[$IDX]
+          ...
+          execSync($CMD, ...)
+      - pattern: |
+          $CMD = process.argv[$IDX]
+          ...
+          spawn($CMD, ...)
+      - pattern: |
+          const $CMD = process.argv[$IDX]
+          ...
+          exec($CMD, ...)
+      - pattern: |
+          const $CMD = process.argv[$IDX]
+          ...
+          spawn($CMD, ...)
+
+    metadata:
+      cwe:
+        - "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      confidence: HIGH
+      impact: HIGH
+      category: security
+      owasp:
+        - A03:2021 - Injection
+
+  # --- Dynamic cwd in spawn options ---
+  - id: node-cli-dynamic-cwd
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Dynamic working directory in spawn/exec options. If 'cwd'
+      comes from user input, an attacker can redirect command
+      execution to a directory containing malicious executables
+      or scripts.
+    pattern-either:
+      - pattern: "spawn($CMD, $ARGS, {cwd: $CWD + $PATH, ...})"
+      - pattern: "spawn($CMD, $ARGS, {cwd: `...${...}...`, ...})"
+      - pattern: "exec($CMD, {cwd: $CWD + $PATH, ...})"
+      - pattern: "exec($CMD, {cwd: `...${...}...`, ...})"
+      - pattern: "execSync($CMD, {cwd: $CWD + $PATH, ...})"
+      - pattern: "execSync($CMD, {cwd: `...${...}...`, ...})"
+      - pattern: "execa($CMD, $ARGS, {cwd: $CWD + $PATH, ...})"
+      - pattern: "execa($CMD, $ARGS, {cwd: `...${...}...`, ...})"
+
+    metadata:
+      cwe:
+        - "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      confidence: MEDIUM
+      impact: HIGH
+      category: security
+
+  # --- CLI tool invocations via exec (npm, git, docker, etc.) ---
+  - id: node-cli-tool-exec
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      CLI tool invocation via shell execution detected. Commands
+      like git, npm, docker, tar, and curl are common injection
+      vectors when their arguments come from user input. Prefer
+      using their Node.js APIs or spawn with argument arrays.
+    pattern-either:
+      # git commands
+      - pattern: exec(`git ...${...}...`, ...)
+      - pattern: execSync(`git ...${...}...`, ...)
+      - pattern: exec("git " + $ARG, ...)
+      - pattern: execSync("git " + $ARG, ...)
+      # npm/pnpm/yarn/bun commands
+      - pattern: exec(`npm ...${...}...`, ...)
+      - pattern: execSync(`npm ...${...}...`, ...)
+      - pattern: exec(`pnpm ...${...}...`, ...)
+      - pattern: exec(`yarn ...${...}...`, ...)
+      - pattern: exec(`bun ...${...}...`, ...)
+      # docker
+      - pattern: exec(`docker ...${...}...`, ...)
+      - pattern: execSync(`docker ...${...}...`, ...)
+      # tar/zip
+      - pattern: exec(`tar ...${...}...`, ...)
+      - pattern: execSync(`tar ...${...}...`, ...)
+      # curl/wget
+      - pattern: exec(`curl ...${...}...`, ...)
+      - pattern: execSync(`curl ...${...}...`, ...)
+      - pattern: exec(`wget ...${...}...`, ...)
+
+    metadata:
+      cwe:
+        - "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      confidence: MEDIUM
+      impact: HIGH
+      category: security
+      owasp:
+        - A03:2021 - Injection

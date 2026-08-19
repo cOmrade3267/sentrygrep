@@ -1,0 +1,151 @@
+rules:
+  # ---------------------------------------------------------------
+  # CWE-78: Command Injection via child_process
+  #
+  # Highest priority for Vercel VDP. Targets any child_process
+  # function where the command string is dynamically built.
+  #
+  # Rule 1a: Direct concatenation/template literal in exec calls
+  # Rule 1b: Intermediate variable (fmt on one line, exec on next)
+  # ---------------------------------------------------------------
+
+  # --- Inline dynamic command strings ---
+  - id: node-cmd-injection-inline
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Command injection risk (CWE-78): a dynamically-built string
+      reaches a child_process function. An attacker controlling any
+      part of the concatenated/interpolated string can inject shell
+      commands. Fix: use execFile() with argument arrays, or validate
+      and escape all inputs.
+    pattern-either:
+      # -- exec / execSync with concatenation --
+      - pattern: exec($A + $B, ...)
+      - pattern: execSync($A + $B, ...)
+      # -- exec / execSync with template literals --
+      - pattern: exec(`...${...}...`, ...)
+      - pattern: execSync(`...${...}...`, ...)
+      # -- spawn / spawnSync with concatenation --
+      - pattern: spawn($A + $B, ...)
+      - pattern: spawnSync($A + $B, ...)
+      # -- spawn with template literals --
+      - pattern: spawn(`...${...}...`, ...)
+      - pattern: spawnSync(`...${...}...`, ...)
+      # -- execFile with dynamic path --
+      - pattern: execFile($A + $B, ...)
+      - pattern: execFileSync($A + $B, ...)
+      - pattern: execFile(`...${...}...`, ...)
+      - pattern: execFileSync(`...${...}...`, ...)
+      # -- require('child_process') qualified calls --
+      - pattern: child_process.exec($A + $B, ...)
+      - pattern: child_process.exec(`...${...}...`, ...)
+      - pattern: child_process.execSync($A + $B, ...)
+      - pattern: child_process.execSync(`...${...}...`, ...)
+      - pattern: child_process.spawn($A + $B, ...)
+      - pattern: child_process.spawn(`...${...}...`, ...)
+      # -- execa (popular npm wrapper) --
+      - pattern: execa($A + $B, ...)
+      - pattern: execa(`...${...}...`, ...)
+      - pattern: execa.command($A + $B, ...)
+      - pattern: execa.command(`...${...}...`, ...)
+      - pattern: execa.commandSync($A + $B, ...)
+      - pattern: execa.commandSync(`...${...}...`, ...)
+
+    metadata:
+      cwe:
+        - "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      confidence: HIGH
+      impact: HIGH
+      category: security
+      owasp:
+        - A03:2021 - Injection
+
+  # --- Intermediate variable: built on one line, exec'd on another ---
+  - id: node-cmd-injection-indirect
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Command injection risk (CWE-78): a dynamically-built string is
+      stored in a variable and later passed to a child_process function.
+      Trace the variable to confirm user-controlled data reaches this sink.
+    pattern-either:
+      # Template literal → exec
+      - pattern: |
+          $VAR = `...${...}...`
+          ...
+          exec($VAR, ...)
+      - pattern: |
+          const $VAR = `...${...}...`
+          ...
+          exec($VAR, ...)
+      - pattern: |
+          let $VAR = `...${...}...`
+          ...
+          exec($VAR, ...)
+      # Template literal → execSync
+      - pattern: |
+          $VAR = `...${...}...`
+          ...
+          execSync($VAR, ...)
+      - pattern: |
+          const $VAR = `...${...}...`
+          ...
+          execSync($VAR, ...)
+      - pattern: |
+          let $VAR = `...${...}...`
+          ...
+          execSync($VAR, ...)
+      # Concatenation → exec
+      - pattern: |
+          $VAR = $A + $B
+          ...
+          exec($VAR, ...)
+      - pattern: |
+          const $VAR = $A + $B
+          ...
+          exec($VAR, ...)
+      - pattern: |
+          let $VAR = $A + $B
+          ...
+          exec($VAR, ...)
+      # Concatenation → execSync
+      - pattern: |
+          $VAR = $A + $B
+          ...
+          execSync($VAR, ...)
+      - pattern: |
+          const $VAR = $A + $B
+          ...
+          execSync($VAR, ...)
+      # Concatenation → spawn
+      - pattern: |
+          $VAR = $A + $B
+          ...
+          spawn($VAR, ...)
+      - pattern: |
+          const $VAR = `...${...}...`
+          ...
+          spawn($VAR, ...)
+      # Template literal → execa
+      - pattern: |
+          $VAR = `...${...}...`
+          ...
+          execa($VAR, ...)
+      - pattern: |
+          const $VAR = `...${...}...`
+          ...
+          execa($VAR, ...)
+      - pattern: |
+          $VAR = `...${...}...`
+          ...
+          execa.command($VAR, ...)
+
+    metadata:
+      cwe:
+        - "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      confidence: MEDIUM
+      impact: HIGH
+      category: security
+      owasp:
+        - A03:2021 - Injection

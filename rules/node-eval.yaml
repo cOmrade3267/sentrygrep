@@ -1,0 +1,36 @@
+rules:
+  # ---------------------------------------------------------------
+  # CWE-94/95: Code execution via eval, new Function, vm
+  #
+  # These execute arbitrary strings as code. Even with no visible
+  # user input, trace the argument — it may come from config,
+  # workflow state, or network response.
+  # ---------------------------------------------------------------
+  - id: node-eval-code-execution
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Code execution sink detected (CWE-94). eval(), new Function(),
+      and vm methods execute arbitrary strings as code. If the
+      argument originates from any untrusted source (user input,
+      config, network, workflow state), this is a code injection
+      vulnerability.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+      - pattern: new Function($ARGS, ...)
+      - pattern: vm.runInNewContext(...)
+      - pattern: vm.runInThisContext(...)
+      - pattern: vm.runInContext(...)
+      - pattern: new vm.Script(...)
+      - pattern: vm.compileFunction(...)
+
+    metadata:
+      cwe:
+        - "CWE-94: Improper Control of Generation of Code ('Code Injection')"
+        - "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')"
+      confidence: HIGH
+      impact: HIGH
+      category: security
+      owasp:
+        - A03:2021 - Injection

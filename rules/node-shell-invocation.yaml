@@ -1,0 +1,41 @@
+rules:
+  # ---------------------------------------------------------------
+  # CWE-78: Dangerous shell invocation
+  #
+  # Any exec() call is shell-interpreted by default. spawn() with
+  # {shell:true} also invokes a shell. These are high-risk sinks
+  # even without visible concatenation — the argument may come
+  # from a variable built elsewhere.
+  # ---------------------------------------------------------------
+  - id: node-shell-invocation
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Shell invocation detected (CWE-78). exec() always uses a shell.
+      spawn() with shell:true also invokes a shell. If any argument
+      is user-controlled, this is a command injection sink. Prefer
+      execFile() or spawn() without shell:true, passing arguments as
+      an array.
+    pattern-either:
+      - pattern: exec(...)
+      - pattern: execSync(...)
+      - pattern: child_process.exec(...)
+      - pattern: child_process.execSync(...)
+      - pattern: "spawn($CMD, $ARGS, {shell: true, ...})"
+      - pattern: "spawnSync($CMD, $ARGS, {shell: true, ...})"
+      - pattern: "spawn($CMD, {shell: true, ...})"
+      - pattern: "spawnSync($CMD, {shell: true, ...})"
+      - pattern: "child_process.spawn($CMD, $ARGS, {shell: true, ...})"
+      - pattern: "child_process.spawnSync($CMD, $ARGS, {shell: true, ...})"
+      - pattern: "execa($CMD, {..., shell: true, ...})"
+      - pattern: execa.command(...)
+      - pattern: execa.commandSync(...)
+
+    metadata:
+      cwe:
+        - "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      confidence: MEDIUM
+      impact: HIGH
+      category: security
+      owasp:
+        - A03:2021 - Injection

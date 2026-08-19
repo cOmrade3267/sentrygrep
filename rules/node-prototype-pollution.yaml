@@ -1,0 +1,41 @@
+rules:
+  # ---------------------------------------------------------------
+  # CWE-1321: Prototype Pollution
+  #
+  # TIGHTENED: Removed the overly broad `$OBJ[$KEY] = $VALUE`
+  # pattern (matches ALL bracket assignments). Now only flags
+  # deep merge utilities and nested dynamic assignment which are
+  # the actual prototype pollution vectors.
+  # ---------------------------------------------------------------
+  - id: node-prototype-pollution
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Potential prototype pollution (CWE-1321). Deep merge with
+      untrusted input can modify Object.prototype, leading to
+      property injection across all objects. Validate keys against
+      __proto__, constructor, and prototype before merging.
+    pattern-either:
+      # Nested dynamic assignment — the high-signal pattern
+      - pattern: $OBJ[$KEY1][$KEY2] = $VALUE
+      # lodash/underscore deep merge
+      - pattern: merge($TARGET, $SOURCE)
+      - pattern: _.merge($TARGET, $SOURCE)
+      - pattern: _.mergeWith($TARGET, $SOURCE, ...)
+      - pattern: _.defaultsDeep($TARGET, $SOURCE)
+      - pattern: lodash.merge($TARGET, $SOURCE)
+      # deepmerge package
+      - pattern: deepmerge($TARGET, $SOURCE)
+      - pattern: deepmerge.all(...)
+      # hoek (hapi ecosystem)
+      - pattern: Hoek.merge($TARGET, $SOURCE)
+      - pattern: Hoek.applyToDefaults($TARGET, $SOURCE)
+
+    metadata:
+      cwe:
+        - "CWE-1321: Improperly Controlled Modification of Object Prototype Attributes ('Prototype Pollution')"
+      confidence: MEDIUM
+      impact: HIGH
+      category: security
+      owasp:
+        - A03:2021 - Injection

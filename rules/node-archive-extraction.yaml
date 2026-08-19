@@ -1,0 +1,52 @@
+rules:
+  # ---------------------------------------------------------------
+  # CWE-22: Archive extraction (Zip Slip)
+  #
+  # Extracting archives without validating entry paths allows
+  # attackers to write files outside the target directory via
+  # ../ in filenames or symlinks.
+  # ---------------------------------------------------------------
+  - id: node-archive-extraction
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Archive extraction detected (CWE-22 / Zip Slip). If archive
+      entry paths are not validated, an attacker can write files
+      outside the intended directory using ../ sequences or
+      symlinks. Validate that resolved paths stay within the
+      extraction target directory.
+    pattern-either:
+      # tar / tar-stream / tar-fs
+      - pattern: tar.extract(...)
+      - pattern: tar.x(...)
+      - pattern: tar.list(...)
+      - pattern: $X.pipe(tar.extract(...))
+      # decompress
+      - pattern: decompress(...)
+      - pattern: decompress($ARCHIVE, $DEST, ...)
+      # extract-zip
+      - pattern: extract($ARCHIVE, ...)
+      - pattern: extractZip(...)
+      # adm-zip
+      - pattern: $ZIP.extractAllTo(...)
+      - pattern: $ZIP.extractEntryTo(...)
+      # unzipper
+      - pattern: unzipper.Extract(...)
+      - pattern: $X.pipe(unzipper.Extract(...))
+      # node-tar
+      - pattern: tar.create(...)
+      # archiver
+      - pattern: archiver(...)
+      # Generic extract/untar/unzip function names
+      - pattern: untar(...)
+      - pattern: unzip(...)
+      - pattern: gunzip(...)
+
+    metadata:
+      cwe:
+        - "CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+      confidence: MEDIUM
+      impact: HIGH
+      category: security
+      owasp:
+        - A01:2021 - Broken Access Control
